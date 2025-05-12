@@ -80,3 +80,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(greeting, reply_markup=reply_markup, parse_mode="Markdown")
     elif update.callback_query:
         await update.callback_query.message.edit_text(greeting, reply_markup=reply_markup, parse_mode="Markdown")
+
+
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    print("Бот запущен ✅")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
