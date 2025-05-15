@@ -28,14 +28,14 @@ def init_db():
 
 # --- UTILS ---
 def get_available_dates(days=5):
-    today = datetime.today()
-    return [(today + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(days)]
+    base_date = datetime.strptime("2025-05-15", "%Y-%m-%d")
+    return [(base_date + timedelta(days=i)).strftime('%d.%m.%Y') for i in range(days)]
 
 def get_available_times(date):
     all_slots = ['10:00', '12:00', '14:00', '16:00']
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT time FROM bookings WHERE date=?", (date,))
+    c.execute("SELECT time FROM bookings WHERE date=?", (datetime.strptime(date, '%d.%m.%Y').strftime('%Y-%m-%d'),))
     booked = [row[0] for row in c.fetchall()]
     conn.close()
     return [t for t in all_slots if t not in booked]
@@ -64,7 +64,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("date:"):
         date = data.split(":", 1)[1]
-        user_data[uid]["date"] = date
+        user_data[uid]["date"] = datetime.strptime(date, '%d.%m.%Y').strftime('%Y-%m-%d')
         times = get_available_times(date)
         keyboard = [[InlineKeyboardButton(t, callback_data=f"time:{t}")] for t in times]
         await query.message.edit_text(f"Дата: {date}\nВыберите время:", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -102,7 +102,8 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Что-то пошло не так. Попробуйте сначала /start.")
         return
     service = data["service"]
-    date = data["date"]
+    original_date = data["date"]
+    date = datetime.strptime(original_date, "%Y-%m-%d").strftime("%d.%m.%Y")
     time = data["time"]
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
