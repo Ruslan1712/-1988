@@ -78,24 +78,26 @@ async def send_custom_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     order_id = c.fetchone()[0] + 1  # Приблизительно, как новый номер
     conn.close()
 
-    order_text = f"📄 Заказ-наряд №{order_id}
-" \
-                  f"🛠 Услуги:
+    order_text = (
+        f"📄 Заказ-наряд №{order_id}
+"
+        f"🛠 Услуги:
 {formatted_services}
-" \
-                  f"📆 Дата: {date}
-" \
-                  f"🕒 Время: {time}
-" \
-                  f"📞 Телефон: +{phone}
+"
+        f"📆 Дата: {date}
+"
+        f"🕒 Время: {time}
+"
+        f"📞 Телефон: +{phone}
 
-" \
-                  f"✅ Запись подтверждена!"
+"
+        f"✅ Запись подтверждена!"
+    )
 
     await context.bot.send_message(chat_id=chat_id, text=order_text)
-    await context.bot.send_message(chat_id=ADMIN_ID, text="📤 Заказ-наряд отправлен:
+    await context.bot.send_message(chat_id=ADMIN_ID, text=f"📤 Заказ-наряд отправлен:
 
-" + order_text)
+{order_text}")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(s, callback_data=f"service:{s}")] for s in services]
     reply_markup = InlineKeyboardMarkup(keyboard)
