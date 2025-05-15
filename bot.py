@@ -74,8 +74,9 @@ async def send_custom_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT last_insert_rowid()")
-    order_id = c.fetchone()[0] + 1  # Приблизительно, как новый номер
+    c.execute("SELECT MAX(id) FROM bookings")
+    result = c.fetchone()
+    order_id = (result[0] or 0) + 1
     conn.close()
 
     order_text = (
@@ -96,6 +97,8 @@ async def send_custom_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_message(chat_id=chat_id, text=order_text)
     await context.bot.send_message(chat_id=ADMIN_ID, text=f"📤 Заказ-наряд отправлен:
+
+{order_text}")
 
 {order_text}")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
