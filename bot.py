@@ -44,6 +44,58 @@ def get_available_times(date):
 user_data = {}
 
 # --- HANDLERS ---
+
+async def send_custom_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("⛔ Доступ запрещён.")
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text("Формат: /sendorder <номер_телефона> <услуги и цены>")
+        return
+
+    phone = context.args[0]
+    raw_text = " ".join(context.args[1:])
+    services = [s.strip() for s in raw_text.split(',')]
+    formatted_services = "
+".join([f"— {s}" for s in services])
+
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT chat_id, date, time FROM bookings WHERE phone=? ORDER BY id DESC LIMIT 1", (phone,))
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        await update.message.reply_text("Заявка с таким номером не найдена.")
+        return
+
+    chat_id, date, time = row
+
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT last_insert_rowid()")
+    order_id = c.fetchone()[0] + 1  # Приблизительно, как новый номер
+    conn.close()
+
+    order_text = f"📄 Заказ-наряд №{order_id}
+" \
+                  f"🛠 Услуги:
+{formatted_services}
+" \
+                  f"📆 Дата: {date}
+" \
+                  f"🕒 Время: {time}
+" \
+                  f"📞 Телефон: +{phone}
+
+" \
+                  f"✅ Запись подтверждена!"
+
+    await context.bot.send_message(chat_id=chat_id, text=order_text)
+    await context.bot.send_message(chat_id=ADMIN_ID, text="📤 Заказ-наряд отправлен:
+
+" + order_text)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(s, callback_data=f"service:{s}")] for s in services]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -112,8 +164,38 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.commit()
     conn.close()
 
-    await update.message.reply_text(f"✅ Вы записаны на {date} в {time}\nУслуга: {service}")
-    await context.bot.send_message(chat_id=ADMIN_ID, text=f"📩 Новая заявка:\n{contact.phone_number}\n{service}, {date} {time}")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT last_insert_rowid()")
+    order_id = c.fetchone()[0]
+    conn.close()
+
+    price_list = {
+        "Замена линз": "14 500 ₽",
+        "Установка линз": "17 500 ₽",
+        "Устранение запотевания": "5 000 ₽",
+        "Полировка фар": "1 500 ₽",
+        "Замена стекол": "4 000 ₽"
+    }
+    price = price_list.get(service, "По запросу")
+
+    order_text = f"📄 Заказ-наряд №{order_id}
+" \
+                  f"🛠 Услуга: {service}
+" \
+                  f"📆 Дата: {date}
+" \
+                  f"🕒 Время: {time}
+" \
+                  f"💰 Стоимость: {price}
+" \
+                  f"📞 Телефон: {contact.phone_number}
+
+" \
+                  f"✅ Запись подтверждена!"
+
+    await update.message.reply_text(order_text)
+    await context.bot.send_message(chat_id=ADMIN_ID, text=order_text)
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
@@ -152,6 +234,7 @@ def main():
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
+    app.add_handler(CommandHandler("sendorder", send_custom_order))
     print("Бот запущен ✅")
     app.run_polling()
 
